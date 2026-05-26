@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCarDetails, getTree, setCarParameter, getClassEnums } from '../../api/client';
+import { getCarDetails, getTree, setCarParameter, getClassEnums, getClassDetails } from '../../api/client';
 
 const CarDetailPage = () => {
   const { id } = useParams();
@@ -8,6 +8,7 @@ const CarDetailPage = () => {
   const [car, setCar] = useState(null);
   const [tree, setTree] = useState([]);
   const [classEnums, setClassEnums] = useState([]);
+  const [classParams, setClassParams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editValues, setEditValues] = useState({});
@@ -17,12 +18,7 @@ const CarDetailPage = () => {
     const [carData, treeData] = await Promise.all([getCarDetails(id), getTree()]);
     setCar(carData);
     setTree(treeData.tree);
-    if (carData.id_class) {
-      try {
-        const enumsData = await getClassEnums(carData.id_class);
-        setClassEnums(enumsData.enums || []);
-      } catch (e) {}
-    }
+
     const init = {};
     if (carData.enum_attributes) {
       carData.enum_attributes.forEach((a) => { init[`enum_${a.id_enum}`] = a.value_id; });
@@ -30,6 +26,24 @@ const CarDetailPage = () => {
     if (carData.flexible_parameters) {
       carData.flexible_parameters.forEach((p) => { init[`param_${p.id_param}`] = p.value || ''; });
     }
+
+    if (carData.id_class) {
+      try {
+        const [enumsData, paramsData] = await Promise.all([
+          getClassEnums(carData.id_class),
+          getClassDetails(carData.id_class),
+        ]);
+        setClassEnums(enumsData.enums || []);
+        const allParams = paramsData.parameters || [];
+        setClassParams(allParams);
+        allParams.forEach((p) => {
+          if (!( `param_${p.id_param}` in init)) {
+            init[`param_${p.id_param}`] = '';
+          }
+        });
+      } catch (e) {}
+    }
+
     setEditValues(init);
     setLoading(false);
   };
@@ -179,15 +193,11 @@ const CarDetailPage = () => {
               return (
                 <>
                   <div className={`dropdown-option ${currentVal === '' || currentVal === undefined ? 'dropdown-option--selected' : ''}`}
-                    onClick={() => { handleChange(`enum_${enm.id_enum}`, ''); setOpenDropdownId(null); }}>
-                    Не выбрано
-                  </div>
+                    onClick={() => { handleChange(`enum_${enm.id_enum}`, ''); setOpenDropdownId(null); }}>Не выбрано</div>
                   {enm.values?.map((v) => (
                     <div key={v.id_value}
                       className={`dropdown-option ${currentVal === v.id_value ? 'dropdown-option--selected' : ''}`}
-                      onClick={() => { handleChange(`enum_${enm.id_enum}`, v.id_value); setOpenDropdownId(null); }}>
-                      {v.value}
-                    </div>
+                      onClick={() => { handleChange(`enum_${enm.id_enum}`, v.id_value); setOpenDropdownId(null); }}>{v.value}</div>
                   ))}
                 </>
               );
@@ -196,7 +206,7 @@ const CarDetailPage = () => {
         </div>
       )}
 
-      {car.flexible_parameters && car.flexible_parameters.length > 0 && (
+      {classParams.length > 0 && (
         <div style={{ marginBottom: 40 }}>
           <h3 style={{ fontWeight: 600, fontSize: 20, lineHeight: '22px', color: '#1C1C19', margin: '0 0 16px 0' }}>Гибкие параметры</h3>
           <div style={{ border: '1px solid #8D8D8B', borderRadius: 10, overflow: 'hidden' }}>
@@ -209,7 +219,7 @@ const CarDetailPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {car.flexible_parameters.map((p) => (
+                {classParams.map((p) => (
                   <tr key={p.id_param}>
                     <td style={tdStyle}>{p.name}</td>
                     <td style={tdStyle}>

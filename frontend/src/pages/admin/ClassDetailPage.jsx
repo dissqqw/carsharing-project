@@ -65,6 +65,7 @@ const ClassDetailPage = () => {
     });
 
     setGrouped(processGrouped(groupedData));
+    console.log('groupedData', groupedData);
     setUnits(unitsData.units);
     setLoading(false);
   };

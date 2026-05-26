@@ -169,7 +169,8 @@ def link_parameter_to_class(id_class):
         is_required=data.get('is_required', False),
         sort_order=data.get('sort_order', 0),
         min_value=min_val,
-        max_value=max_val
+        max_value=max_val,
+        id_group=data.get('id_group')
     )
     
     try:
@@ -516,3 +517,13 @@ def batch_update_parameters(id_car):
     except Exception as e:
         db.session.rollback()
         return jsonify({'status': 'db_error', 'error': str(e)}), 500
+    
+
+@parameter_bp.route('/api/class/<int:id_class>/groups', methods=['GET'])
+def get_class_groups(id_class):
+    clazz = CarClass.query.get(id_class)
+    if not clazz:
+        return jsonify({'error': 'Class not found'}), 404
+    
+    groups = ParameterGroup.query.filter_by(id_class=id_class).all()
+    return jsonify({'groups': [g.to_dict() for g in groups]}), 200

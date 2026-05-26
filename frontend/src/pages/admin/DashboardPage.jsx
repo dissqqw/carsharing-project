@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getTree, getCars, getParameters, getEnumerations, getCarValidation } from '../../api/client';
+import { getTree, getCars, getParameters, getEnumerations, getCarValidation, getClassEnums, getCarDetails } from '../../api/client';
 import AddClassModal from '../../components/AddClassModal';
 import AddCarModal from '../../components/AddCarModal';
 import AddParameterModal from '../../components/AddParameterModal';
+import DeleteCarModal from '../../components/DeleteCarModal';
 
 const cards = [
   { title: 'Классы автомобилей', icon: '/folder.svg', path: '/admin/classes', desc: 'Иерархическая структура моделей. Создание, редактирование и перемещение классов в дереве' },
@@ -26,6 +27,7 @@ const DashboardPage = () => {
   const [addClassOpen, setAddClassOpen] = useState(false);
   const [addCarOpen, setAddCarOpen] = useState(false);
   const [addParameterOpen, setAddParameterOpen] = useState(false);
+  const [deleteCarOpen, setDeleteCarOpen] = useState(null);
   const navigate = useNavigate();
 
   const loadData = async () => {
@@ -44,17 +46,37 @@ const DashboardPage = () => {
     const draftList = [];
     for (const car of cars.cars) {
       try {
-        const validation = await getCarValidation(car.id_car);
+        const [validation, details, classEnums] = await Promise.all([
+          getCarValidation(car.id_car),
+          getCarDetails(car.id_car),
+          getClassEnums(car.id_class),
+        ]);
+
+        const missing = [];
+
         if (validation.status === 'invalid') {
-          const missingNames = validation.missing_required.map((code) => {
+          validation.missing_required.forEach((code) => {
             const p = params.parameters.find((pp) => pp.code === code);
-            return p ? p.name : code;
+            if (p) missing.push(p.name);
           });
+        }
+
+        if (classEnums && classEnums.enums) {
+          classEnums.enums.forEach((enm) => {
+            if (enm.is_required) {
+              const hasValue = details.enum_attributes?.some((a) => a.id_enum === enm.id_enum);
+              if (!hasValue) missing.push(enm.name);
+            }
+          });
+        }
+
+        if (missing.length > 0) {
           draftList.push({
             id: car.id_car,
             name: car.short_name,
             className: car.name,
-            missing: missingNames.join(', '),
+            missing: missing.join(', '),
+            carData: car,
           });
         }
       } catch (e) {}
@@ -133,8 +155,8 @@ const DashboardPage = () => {
               <th style={{ fontWeight: 600, fontSize: 18, lineHeight: '20px', color: '#1C1C19', textAlign: 'left', padding: '14px 20px', background: '#FFFFFF', borderBottom: '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif', width: 120 }}>ID</th>
               <th style={{ fontWeight: 600, fontSize: 18, lineHeight: '20px', color: '#1C1C19', textAlign: 'left', padding: '14px 20px', background: '#FFFFFF', borderBottom: '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif' }}>Модель</th>
               <th style={{ fontWeight: 600, fontSize: 18, lineHeight: '20px', color: '#1C1C19', textAlign: 'left', padding: '14px 20px', background: '#FFFFFF', borderBottom: '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif' }}>Класс</th>
-              <th style={{ fontWeight: 600, fontSize: 18, lineHeight: '20px', color: '#1C1C19', textAlign: 'left', padding: '14px 20px', background: '#FFFFFF', borderBottom: '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif' }}>Незаполненные параметры</th>
-              <th style={{ fontWeight: 600, fontSize: 18, lineHeight: '20px', color: '#1C1C19', textAlign: 'left', padding: '14px 20px', background: '#FFFFFF', borderBottom: '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif', width: 160 }}>Действие</th>
+              <th style={{ fontWeight: 600, fontSize: 18, lineHeight: '20px', color: '#1C1C19', textAlign: 'left', padding: '14px 20px', background: '#FFFFFF', borderBottom: '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif' }}>Незаполненные характеристики</th>
+              <th style={{ fontWeight: 600, fontSize: 18, lineHeight: '20px', color: '#1C1C19', textAlign: 'left', padding: '14px 20px', background: '#FFFFFF', borderBottom: '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif', width: 160 }}>Действия</th>
             </tr>
           </thead>
           <tbody>
@@ -145,7 +167,10 @@ const DashboardPage = () => {
                 <td style={{ fontWeight: 400, fontSize: 18, lineHeight: '20px', color: '#1C1C19', padding: '14px 20px', background: '#FFFFFF', borderBottom: i === drafts.length - 1 ? 'none' : '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif' }}>{draft.className}</td>
                 <td style={{ fontWeight: 400, fontSize: 18, lineHeight: '20px', color: '#1C1C19', padding: '14px 20px', background: '#FFFFFF', borderBottom: i === drafts.length - 1 ? 'none' : '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif' }}>{draft.missing}</td>
                 <td style={{ fontWeight: 400, fontSize: 18, lineHeight: '20px', color: '#1C1C19', padding: '14px 20px', background: '#FFFFFF', borderBottom: i === drafts.length - 1 ? 'none' : '1px solid #8D8D8B', fontFamily: '"Inter Tight", sans-serif' }}>
-                  <span style={{ fontWeight: 600, fontSize: 18, lineHeight: '20px', color: '#1C1C19', textDecoration: 'underline', cursor: 'pointer' }}>Открыть</span>
+                  <div style={{ display: 'flex', gap: 30 }}>
+                    <img src="/pencil.svg" alt="Редактировать" style={{ width: 22, height: 22, cursor: 'pointer' }} onClick={() => navigate(`/admin/cars/${draft.id}`)} />
+                    <img src="/delete.svg" alt="Удалить" style={{ width: 22, height: 22, cursor: 'pointer' }} onClick={() => setDeleteCarOpen(draft.carData)} />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -164,9 +189,10 @@ const DashboardPage = () => {
         </div>
       )}
 
-    <AddClassModal open={addClassOpen} onClose={() => setAddClassOpen(false)} onSuccess={loadData} />
-    <AddCarModal open={addCarOpen} onClose={() => setAddCarOpen(false)} onSuccess={loadData} />
-    <AddParameterModal open={addParameterOpen} onClose={() => setAddParameterOpen(false)} onSuccess={loadData} />
+      <AddClassModal open={addClassOpen} onClose={() => setAddClassOpen(false)} onSuccess={loadData} />
+      <AddCarModal open={addCarOpen} onClose={() => setAddCarOpen(false)} onSuccess={loadData} />
+      <AddParameterModal open={addParameterOpen} onClose={() => setAddParameterOpen(false)} onSuccess={loadData} />
+      <DeleteCarModal open={!!deleteCarOpen} onClose={() => setDeleteCarOpen(null)} onSuccess={loadData} car={deleteCarOpen} />
     </div>
   );
 };

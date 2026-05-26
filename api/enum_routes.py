@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from database import db
 from models.car_class import CarClass, Car
 from models.enumeration import Enumeration, EnumValue, ClassEnum, CarEnumValue
+from sqlalchemy.orm import selectinload
 
 enum_bp = Blueprint('enum', __name__)
 
@@ -26,9 +27,10 @@ def add_enumeration():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+
 @enum_bp.route('/api/enumerations', methods=['GET'])
 def get_enumerations():
-    enums = Enumeration.query.all()
+    enums = Enumeration.query.options(selectinload(Enumeration.values)).all()
     return jsonify({'enumerations': [e.to_dict() for e in enums]}), 200
 
 @enum_bp.route('/api/enumeration/<int:id_enum>', methods=['GET'])

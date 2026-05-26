@@ -1,33 +1,45 @@
 import { useState, useEffect } from 'react';
-import { linkParameterToClass, getParameters } from '../api/client';
+import { linkParameterToClass, getParameters, getClassGroups } from '../api/client';
 
 const LinkParameterModal = ({ open, onClose, onSuccess, classId, className }) => {
   const [paramId, setParamId] = useState(null);
   const [isRequired, setIsRequired] = useState(false);
   const [minValue, setMinValue] = useState('');
   const [maxValue, setMaxValue] = useState('');
+  const [groupId, setGroupId] = useState(null);
   const [parameters, setParameters] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [paramDropdownOpen, setParamDropdownOpen] = useState(false);
   const [requiredDropdownOpen, setRequiredDropdownOpen] = useState(false);
+  const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (open) {
-      getParameters().then((data) => setParameters(data.parameters)).catch(() => {});
+      Promise.all([
+        getParameters(),
+        getClassGroups(classId),
+      ]).then(([paramsData, groupsData]) => {
+        setParameters(paramsData.parameters);
+        setGroups(groupsData.groups || []);
+      }).catch(() => {});
       setParamId(null);
       setIsRequired(false);
       setMinValue('');
       setMaxValue('');
+      setGroupId(null);
       setError('');
       setParamDropdownOpen(false);
       setRequiredDropdownOpen(false);
+      setGroupDropdownOpen(false);
     }
-  }, [open]);
+  }, [open, classId]);
 
   if (!open) return null;
 
   const selectedParam = parameters.find((p) => p.id_param === paramId);
+  const selectedGroup = groups.find((g) => g.id_group === groupId);
 
   const handleSubmit = async () => {
     if (!paramId) { setError('Выберите параметр'); return; }
@@ -40,6 +52,7 @@ const LinkParameterModal = ({ open, onClose, onSuccess, classId, className }) =>
         min_value: minValue ? Number(minValue) : undefined,
         max_value: maxValue ? Number(maxValue) : undefined,
         sort_order: 1,
+        id_group: groupId,
       });
       onSuccess();
       onClose();
@@ -71,7 +84,7 @@ const LinkParameterModal = ({ open, onClose, onSuccess, classId, className }) =>
 
         <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
           <div style={{ flex: 1, position: 'relative' }}>
-            <div onClick={() => { setParamDropdownOpen(!paramDropdownOpen); setRequiredDropdownOpen(false); }} style={{ ...fieldStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+            <div onClick={() => { setParamDropdownOpen(!paramDropdownOpen); setRequiredDropdownOpen(false); setGroupDropdownOpen(false); }} style={{ ...fieldStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
               <span style={{ color: selectedParam ? '#1C1C19' : '#707070' }}>{selectedParam ? selectedParam.name : 'Параметр *'}</span>
               <svg width="12" height="8" viewBox="0 0 12 8" fill="none" style={{ transform: paramDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
                 <path d="M1 1L6 6L11 1" stroke="#707070" strokeWidth="2" strokeLinecap="round"/>
@@ -89,7 +102,7 @@ const LinkParameterModal = ({ open, onClose, onSuccess, classId, className }) =>
             )}
           </div>
           <div style={{ flex: 1, position: 'relative' }}>
-            <div onClick={() => { setRequiredDropdownOpen(!requiredDropdownOpen); setParamDropdownOpen(false); }} style={{ ...fieldStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+            <div onClick={() => { setRequiredDropdownOpen(!requiredDropdownOpen); setParamDropdownOpen(false); setGroupDropdownOpen(false); }} style={{ ...fieldStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
               <span style={{ color: '#1C1C19' }}>{isRequired ? 'Обязательно' : 'Не обязательно'}</span>
               <svg width="12" height="8" viewBox="0 0 12 8" fill="none" style={{ transform: requiredDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
                 <path d="M1 1L6 6L11 1" stroke="#707070" strokeWidth="2" strokeLinecap="round"/>
@@ -104,13 +117,30 @@ const LinkParameterModal = ({ open, onClose, onSuccess, classId, className }) =>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 20, marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
           <div style={{ flex: 1 }}>
             <input placeholder="Минимальное значение" value={minValue} onChange={(e) => setMinValue(e.target.value)} style={fieldStyle} />
           </div>
           <div style={{ flex: 1 }}>
             <input placeholder="Максимальное значение" value={maxValue} onChange={(e) => setMaxValue(e.target.value)} style={fieldStyle} />
           </div>
+        </div>
+
+        <div style={{ marginBottom: 24, position: 'relative' }}>
+          <div onClick={() => { setGroupDropdownOpen(!groupDropdownOpen); setParamDropdownOpen(false); setRequiredDropdownOpen(false); }} style={{ ...fieldStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+            <span style={{ color: selectedGroup ? '#1C1C19' : '#707070' }}>{selectedGroup ? selectedGroup.name : 'Группа'}</span>
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none" style={{ transform: groupDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <path d="M1 1L6 6L11 1" stroke="#707070" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </div>
+          {groupDropdownOpen && (
+            <div style={{ position: 'absolute', top: 54, left: 0, right: 0, background: '#FFFFFF', border: '1px solid #8D8D8B', borderRadius: 10, maxHeight: 250, overflow: 'auto', zIndex: 10 }}>
+              <div className={`dropdown-option ${groupId === null ? 'dropdown-option--selected' : ''}`} onClick={() => { setGroupId(null); setGroupDropdownOpen(false); }}>Без группы</div>
+              {groups.map((g) => (
+                <div key={g.id_group} className={`dropdown-option ${groupId === g.id_group ? 'dropdown-option--selected' : ''}`} onClick={() => { setGroupId(g.id_group); setGroupDropdownOpen(false); }}>{g.name}</div>
+              ))}
+            </div>
+          )}
         </div>
 
         {error && <p style={{ color: '#E53935', fontSize: 16, margin: '0 0 16px 0', fontFamily: '"Inter Tight", sans-serif' }}>{error}</p>}

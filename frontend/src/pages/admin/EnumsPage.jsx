@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getEnumerations } from '../../api/client';
 import AddEnumModal from '../../components/AddEnumModal';
+import EditEnumModal from '../../components/EditEnumModal';
 import DeleteEnumModal from '../../components/DeleteEnumModal';
 
 const EnumsPage = () => {
@@ -93,17 +94,15 @@ const EnumsPage = () => {
                 <th style={thStyle}>Название</th>
                 <th style={thStyle}>Описание</th>
                 <th style={{ ...thStyle, width: 200 }}>Тип значений</th>
-                <th style={{ ...thStyle, width: 150 }}>Значений</th>
                 <th style={{ ...thStyle, width: 160 }}>Действия</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((e) => (
-                <tr key={e.id_enum} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/enums/${e.id_enum}`)}>
+                <tr key={e.id_enum}>
                   <td style={tdStyle}>{highlightMatch(e.name, search)}</td>
                   <td style={tdStyle}>{e.description || '—'}</td>
                   <td style={tdStyle}>{typeLabels[e.value_type] || e.value_type}</td>
-                  <td style={tdStyle}>{e.values?.length || 0}</td>
                   <td style={tdStyle} onClick={(ev) => ev.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 30 }}>
                       <img src="/pencil.svg" alt="Редактировать" style={{ width: 22, height: 22, cursor: 'pointer' }} onClick={() => setEditEnum(e)} />
@@ -117,7 +116,8 @@ const EnumsPage = () => {
         </div>
       )}
 
-      <AddEnumModal open={addEnumOpen || !!editEnum} onClose={() => { setAddEnumOpen(false); setEditEnum(null); }} onSuccess={loadData} editData={editEnum} />
+      <AddEnumModal open={addEnumOpen} onClose={() => setAddEnumOpen(false)} onSuccess={loadData} />
+      <EditEnumModal open={!!editEnum} onClose={() => setEditEnum(null)} onSuccess={loadData} enumItem={editEnum} />
       <DeleteEnumModal open={!!deleteEnum} onClose={() => setDeleteEnum(null)} onSuccess={loadData} enumItem={deleteEnum} />
     </div>
   );
