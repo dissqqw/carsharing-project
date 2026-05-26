@@ -11,10 +11,8 @@ const CarsPage = () => {
   const [addCarOpen, setAddCarOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('all');
   const [hoverAdd, setHoverAdd] = useState(false);
   const [classDropdownOpen, setClassDropdownOpen] = useState(false);
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [editCar, setEditCar] = useState(null);
   const [deleteCarOpen, setDeleteCarOpen] = useState(null);
   const navigate = useNavigate();
@@ -39,12 +37,6 @@ const CarsPage = () => {
 
   const allClasses = flatTree(tree);
   const selectedClass = allClasses.find((c) => c.id_class === classFilter);
-  const statusOptions = [
-    { value: 'all', label: 'Все' },
-    { value: 'filled', label: 'Заполнены полностью' },
-    { value: 'empty', label: 'Есть незаполненные' },
-  ];
-  const selectedStatus = statusOptions.find((s) => s.value === statusFilter);
 
   const filteredCars = cars.filter((car) => {
     const matchSearch = !search || car.short_name.toLowerCase().includes(search.toLowerCase()) || car.name.toLowerCase().includes(search.toLowerCase());
@@ -59,8 +51,7 @@ const CarsPage = () => {
       const allowedIds = selectedNode ? getChildrenIds(selectedNode) : [classFilter];
       matchClass = allowedIds.includes(car.id_class);
     }
-    const matchStatus = statusFilter === 'all' || (statusFilter === 'filled' ? car.parameters?.length > 0 : !car.parameters?.length);
-    return matchSearch && matchClass && matchStatus;
+    return matchSearch && matchClass;
   });
 
   const thStyle = {
@@ -101,7 +92,7 @@ const CarsPage = () => {
         </div>
 
         <div style={{ position: 'relative', width: 300 }}>
-          <div onClick={() => { setClassDropdownOpen(!classDropdownOpen); setStatusDropdownOpen(false); }}
+          <div onClick={() => setClassDropdownOpen(!classDropdownOpen)}
             style={{ ...fieldStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
             <span style={{ color: selectedClass ? '#1C1C19' : '#707070' }}>{selectedClass ? selectedClass.name : 'Все классы'}</span>
             <svg width="12" height="8" viewBox="0 0 12 8" fill="none" style={{ transform: classDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
@@ -126,27 +117,6 @@ const CarsPage = () => {
           )}
         </div>
 
-        <div style={{ position: 'relative', width: 300 }}>
-          <div onClick={() => { setStatusDropdownOpen(!statusDropdownOpen); setClassDropdownOpen(false); }}
-            style={{ ...fieldStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-            <span style={{ color: selectedStatus ? '#1C1C19' : '#707070' }}>{selectedStatus ? selectedStatus.label : 'Все'}</span>
-            <svg width="12" height="8" viewBox="0 0 12 8" fill="none" style={{ transform: statusDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-              <path d="M1 1L6 6L11 1" stroke="#707070" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </div>
-          {statusDropdownOpen && (
-            <div style={{ position: 'absolute', top: 44, left: 0, right: 0, background: '#FFFFFF', border: '1px solid #8D8D8B', borderRadius: 10, maxHeight: 250, overflow: 'auto', zIndex: 10 }}>
-              {statusOptions.map((s) => (
-                <div key={s.value}
-                  className={`dropdown-option ${statusFilter === s.value ? 'dropdown-option--selected' : ''}`}
-                  onClick={() => { setStatusFilter(s.value); setStatusDropdownOpen(false); }}>
-                  {s.label}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div style={{ flex: 1 }} />
 
         <button onMouseEnter={() => setHoverAdd(true)} onMouseLeave={() => setHoverAdd(false)} onClick={() => setAddCarOpen(true)}
@@ -158,7 +128,7 @@ const CarsPage = () => {
 
       {filteredCars.length === 0 ? (
         <p style={{ textAlign: 'center', padding: 40, fontWeight: 400, fontSize: 18, lineHeight: '20px', color: '#1C1C19' }}>
-          {search || classFilter || statusFilter !== 'all' ? 'Ничего не найдено' : 'Нет добавленных автомобилей. Нажмите «Добавить автомобиль», чтобы создать первый'}
+          {search || classFilter ? 'Ничего не найдено' : 'Нет добавленных автомобилей. Нажмите «Добавить автомобиль», чтобы создать первый'}
         </p>
       ) : (
         <div style={{ border: '1px solid #8D8D8B', borderRadius: 10, overflow: 'hidden' }}>
@@ -167,8 +137,6 @@ const CarsPage = () => {
               <tr>
                 <th style={thStyle}>Гос. номер</th>
                 <th style={thStyle}>Модель</th>
-                <th style={thStyle}>Класс</th>
-                <th style={thStyle}>Характеристик</th>
                 <th style={{ ...thStyle, width: 160 }}>Действия</th>
               </tr>
             </thead>
@@ -177,8 +145,6 @@ const CarsPage = () => {
                 <tr key={car.id_car}>
                   <td style={tdStyle}>{car.short_name}</td>
                   <td style={tdStyle}>{car.name}</td>
-                  <td style={tdStyle}>{allClasses.find((c) => c.id_class === car.id_class)?.name || '—'}</td>
-                  <td style={tdStyle}>{car.parameters ? `${car.parameters.length} параметров` : '—'}</td>
                   <td style={tdStyle}>
                     <div style={{ display: 'flex', gap: 30 }}>
                       <img src="/pencil.svg" alt="Детали" style={{ width: 22, height: 22, cursor: 'pointer' }} onClick={() => navigate(`/admin/cars/${car.id_car}`)} />
