@@ -94,6 +94,7 @@ const EnumsPage = () => {
                 <th style={thStyle}>Название</th>
                 <th style={thStyle}>Описание</th>
                 <th style={{ ...thStyle, width: 200 }}>Тип значений</th>
+                <th style={thStyle}>Значения</th>
                 <th style={{ ...thStyle, width: 160 }}>Действия</th>
               </tr>
             </thead>
@@ -103,6 +104,11 @@ const EnumsPage = () => {
                   <td style={tdStyle}>{highlightMatch(e.name, search)}</td>
                   <td style={tdStyle}>{e.description || '—'}</td>
                   <td style={tdStyle}>{typeLabels[e.value_type] || e.value_type}</td>
+                  <td style={{ ...tdStyle, whiteSpace: 'pre-line' }}>
+                    {e.values && e.values.length > 0
+                      ? e.values.map((v, i) => `${i + 1}. ${v.value}`).join('\n')
+                      : '—'}
+                  </td>
                   <td style={tdStyle} onClick={(ev) => ev.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 30 }}>
                       <img src="/pencil.svg" alt="Редактировать" style={{ width: 22, height: 22, cursor: 'pointer' }} onClick={() => setEditEnum(e)} />

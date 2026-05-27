@@ -79,7 +79,8 @@ const CarDetailPage = () => {
       }
       await loadData();
     } catch (e) {
-      console.error(e);
+      const msg = typeof e === 'string' ? e : 'Ошибка при сохранении';
+      alert(msg);
     } finally {
       setSaving(false);
     }

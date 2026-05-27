@@ -15,7 +15,8 @@ class Enumeration(db.Model):
             'id_enum': self.id_enum,
             'name': self.name,
             'description': self.description,
-            'value_type': self.value_type
+            'value_type': self.value_type,
+            'values': [v.to_dict() for v in self.values] if self.values else []
         }
 
 

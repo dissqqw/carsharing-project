@@ -286,3 +286,17 @@ def get_car_attributes(id_car):
 
     attributes = CarEnumValue.query.filter_by(id_car=id_car).all()
     return jsonify({'attributes': [a.to_dict() for a in attributes]}), 200
+
+@enum_bp.route('/api/class/<int:id_class>/enum/<int:id_enum>', methods=['DELETE'])
+def unlink_enum_from_class(id_class, id_enum):
+    link = ClassEnum.query.get((id_class, id_enum))
+    if not link:
+        return jsonify({'error': 'Enum is not linked to this class'}), 404
+    
+    try:
+        db.session.delete(link)
+        db.session.commit()
+        return jsonify({'status': 'deleted'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

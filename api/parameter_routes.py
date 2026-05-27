@@ -267,6 +267,19 @@ def assign_param_to_group(id_class, id_param):
     db.session.commit()
     return jsonify({'status': 'updated'}), 200
 
+@parameter_bp.route('/api/class/<int:id_class>/parameter/<int:id_param>', methods=['DELETE'])
+def unlink_parameter_from_class(id_class, id_param):
+    link = ClassParameter.query.get((id_class, id_param))
+    if not link:
+        return jsonify({'error': 'Parameter is not linked to this class'}), 404
+    
+    try:
+        db.session.delete(link)
+        db.session.commit()
+        return jsonify({'status': 'deleted'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @parameter_bp.route('/api/class/<int:id_class>/parameters/grouped', methods=['GET'])
 def get_class_parameters_grouped(id_class):
@@ -527,3 +540,36 @@ def get_class_groups(id_class):
     
     groups = ParameterGroup.query.filter_by(id_class=id_class).all()
     return jsonify({'groups': [g.to_dict() for g in groups]}), 200
+
+@parameter_bp.route('/api/class/<int:id_class>/group/<int:id_group>', methods=['PUT'])
+def update_parameter_group(id_class, id_group):
+    group = ParameterGroup.query.get(id_group)
+    if not group or group.id_class != id_class:
+        return jsonify({'error': 'Group not found'}), 404
+    
+    data = request.json
+    if 'name' in data:
+        group.name = data['name']
+    if 'sort_order' in data:
+        group.sort_order = data['sort_order']
+    
+    try:
+        db.session.commit()
+        return jsonify({'status': 'updated', 'group': group.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+    
+@parameter_bp.route('/api/class/<int:id_class>/group/<int:id_group>', methods=['DELETE'])
+def delete_parameter_group(id_class, id_group):
+    group = ParameterGroup.query.get(id_group)
+    if not group or group.id_class != id_class:
+        return jsonify({'error': 'Group not found'}), 404
+    
+    try:
+        db.session.delete(group)
+        db.session.commit()
+        return jsonify({'status': 'deleted'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

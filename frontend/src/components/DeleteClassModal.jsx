@@ -89,7 +89,7 @@ const DeleteClassModal = ({ open, onClose, onSuccess, classItem }) => {
 
         {error && <p style={{ color: '#E53935', fontSize: 16, margin: '0 0 16px 0', fontFamily: '"Inter Tight", sans-serif' }}>{error}</p>}
 
-        <button onClick={handleDelete} disabled={loading} style={{ width: '100%', height: 50, background: '#1C1C19', border: 'none', borderRadius: 10, color: '#FFFFFF', fontFamily: '"Inter Tight", sans-serif', fontWeight: 500, fontSize: 18, lineHeight: '20px', cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+        <button onClick={handleDelete} disabled={loading} style={{ width: '100%', height: 50, background: '#E60023', border: 'none', borderRadius: 10, color: '#FFFFFF', fontFamily: '"Inter Tight", sans-serif', fontWeight: 500, fontSize: 18, lineHeight: '20px', cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
           {loading ? 'Удаление...' : 'Удалить'}
         </button>
       </div>

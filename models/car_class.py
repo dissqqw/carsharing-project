@@ -64,5 +64,5 @@ class Car(db.Model):
             'short_name': self.short_name,
             'name': self.car_class.name,
             'id_class': self.id_class,
-            'attributes': attrs
+            'attributes': attrs,
         }

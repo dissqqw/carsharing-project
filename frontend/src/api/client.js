@@ -33,3 +33,18 @@ export const getClassParametersGrouped = (id) => fetch(`${BASE_URL}/api/class/${
 export const createGroup = (classId, data) => fetch(`${BASE_URL}/api/class/${classId}/group`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(handleResponse);
 export const getClassEnums = (id) => fetch(`${BASE_URL}/api/class/${id}/enums`).then(handleResponse);
 export const getClassGroups = (id) => fetch(`${BASE_URL}/api/class/${id}/groups`).then(handleResponse);
+export const unlinkParameterFromClass = (classId, paramId) =>
+  fetch(`${BASE_URL}/api/class/${classId}/parameter/${paramId}`, { method: 'DELETE' }).then(handleResponse);
+
+export const unlinkEnumFromClass = (classId, enumId) =>
+  fetch(`${BASE_URL}/api/class/${classId}/enum/${enumId}`, { method: 'DELETE' }).then(handleResponse);
+
+export const updateGroup = (classId, groupId, data) =>
+  fetch(`${BASE_URL}/api/class/${classId}/group/${groupId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(handleResponse);
+
+export const deleteGroup = (classId, groupId) =>
+  fetch(`${BASE_URL}/api/class/${classId}/group/${groupId}`, { method: 'DELETE' }).then(handleResponse);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getTree, getCars, getClassParametersGrouped, getUnits, getClassEnums } from '../../api/client';
+import { getTree, getCars, getClassParametersGrouped, getUnits, getClassEnums, getClassGroups, unlinkParameterFromClass, unlinkEnumFromClass, deleteGroup, updateGroup } from '../../api/client';
 import LinkParameterModal from '../../components/LinkParameterModal';
 import CreateGroupModal from '../../components/CreateGroupModal';
 import DeleteClassModal from '../../components/DeleteClassModal';
@@ -23,6 +23,7 @@ const ClassDetailPage = () => {
   const [units, setUnits] = useState([]);
   const [grouped, setGrouped] = useState({ groups: [], ungrouped: [] });
   const [classEnums, setClassEnums] = useState([]);
+  const [allGroups, setAllGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hoverMove, setHoverMove] = useState(false);
   const [hoverDelete, setHoverDelete] = useState(false);
@@ -34,14 +35,20 @@ const ClassDetailPage = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
   const [linkEnumOpen, setLinkEnumOpen] = useState(false);
+  const [editGroup, setEditGroup] = useState(null);
+  const [deleteGroupOpen, setDeleteGroupOpen] = useState(null);
+  const [deleteEnumOpen, setDeleteEnumOpen] = useState(null);
+  const [deleteParamOpen, setDeleteParamOpen] = useState(null);
+  const [editGroupModalOpen, setEditGroupModalOpen] = useState(null);
 
   const loadData = async () => {
-    const [treeData, carsData, groupedData, unitsData, enumsData] = await Promise.all([
-      getTree(), getCars(), getClassParametersGrouped(id), getUnits(), getClassEnums(id),
+    const [treeData, carsData, groupedData, unitsData, enumsData, groupsData] = await Promise.all([
+      getTree(), getCars(), getClassParametersGrouped(id), getUnits(), getClassEnums(id), getClassGroups(id),
     ]);
     setTree(treeData.tree);
     setCars(carsData.cars);
     setClassEnums(enumsData.enums || []);
+    setAllGroups(groupsData.groups || []);
 
     const flatTree = (nodes) => {
       let result = [];
@@ -65,7 +72,6 @@ const ClassDetailPage = () => {
     });
 
     setGrouped(processGrouped(groupedData));
-    console.log('groupedData', groupedData);
     setUnits(unitsData.units);
     setLoading(false);
   };
@@ -147,7 +153,40 @@ const ClassDetailPage = () => {
   };
 
   const hasParams = grouped.groups.length > 0 || grouped.ungrouped.length > 0;
-  const hasGroups = grouped.groups.length > 0;
+
+  const handleDeleteParam = async () => {
+    try {
+      await unlinkParameterFromClass(id, deleteParamOpen);
+      setDeleteParamOpen(null);
+      window.location.reload();
+    } catch (e) { alert('Ошибка'); }
+  };
+
+  const handleDeleteEnum = async () => {
+    try {
+      await unlinkEnumFromClass(id, deleteEnumOpen);
+      setDeleteEnumOpen(null);
+      window.location.reload();
+    } catch (e) { alert('Ошибка'); }
+  };
+
+  const handleDeleteGroup = async () => {
+    try {
+      await deleteGroup(id, deleteGroupOpen);
+      setDeleteGroupOpen(null);
+      window.location.reload();
+    } catch (e) { alert('Ошибка'); }
+  };
+
+  const modalOverlay = {
+    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+    background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+  };
+
+  const modalBox = {
+    width: 733, background: '#FFFFFF', borderRadius: 10, padding: '40px',
+    position: 'relative', fontFamily: '"Inter Tight", sans-serif',
+  };
 
   return (
     <div style={{ fontFamily: '"Inter Tight", sans-serif', marginTop: 40 }}>
@@ -206,6 +245,7 @@ const ClassDetailPage = () => {
                 <th style={thStyle}>Ограничения</th>
                 <th style={thStyle}>Источник</th>
                 <th style={thStyle}>Группа</th>
+                <th style={{ ...thStyle, width: 60 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -217,6 +257,11 @@ const ClassDetailPage = () => {
                   <td style={tdStyle}>{p.min_value || p.max_value ? `${p.min_value || '—'} – ${p.max_value || '—'}` : '—'}</td>
                   <td style={tdStyle}>{p.inherited_from ? `Унаследован от «${p.inherited_from}»` : 'Свой'}</td>
                   <td style={tdStyle}>{p.group_name || '—'}</td>
+                  <td style={tdStyle}>
+                    {!p.inherited_from && (
+                      <img src="/delete.svg" alt="Удалить" style={{ width: 22, height: 22, cursor: 'pointer' }} onClick={() => setDeleteParamOpen(p.id_param)} />
+                    )}
+                  </td>
                 </tr>
               )) : null}
             </tbody>
@@ -248,6 +293,7 @@ const ClassDetailPage = () => {
                 <th style={thStyle}>Обязательный</th>
                 <th style={thStyle}>Тип значений</th>
                 <th style={thStyle}>Значений</th>
+                <th style={{ ...thStyle, width: 60 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -257,6 +303,9 @@ const ClassDetailPage = () => {
                   <td style={tdStyle}>{e.is_required ? 'Да' : 'Нет'}</td>
                   <td style={tdStyle}>{e.value_type === 'numeric' ? 'Числовой' : 'Строковый'}</td>
                   <td style={tdStyle}>{e.values?.length || 0}</td>
+                  <td style={tdStyle}>
+                    <img src="/delete.svg" alt="Удалить" style={{ width: 22, height: 22, cursor: 'pointer' }} onClick={() => setDeleteEnumOpen(e.id_enum)} />
+                  </td>
                 </tr>
               )) : null}
             </tbody>
@@ -287,36 +336,100 @@ const ClassDetailPage = () => {
                 <th style={thStyle}>Группа</th>
                 <th style={thStyle}>Параметров</th>
                 <th style={thStyle}>Порядок</th>
+                <th style={{ ...thStyle, width: 120 }}>Действия</th>
               </tr>
             </thead>
             <tbody>
-              {hasGroups ? grouped.groups.map((g) => (
-                <tr key={g.id_group}>
-                  <td style={tdStyle}>{g.name}</td>
-                  <td style={tdStyle}>{g.parameters.length}</td>
-                  <td style={tdStyle}>{g.sort_order || 1}</td>
-                </tr>
-              )) : null}
+              {allGroups.length > 0 ? allGroups.map((g) => {
+                const groupWithParams = grouped.groups.find((gg) => gg.id_group === g.id_group);
+                const paramCount = groupWithParams ? groupWithParams.parameters.length : 0;
+                return (
+                  <tr key={g.id_group}>
+                    <td style={tdStyle}>{g.name}</td>
+                    <td style={tdStyle}>{paramCount}</td>
+                    <td style={tdStyle}>{g.sort_order || 1}</td>
+                    <td style={tdStyle}>
+                      <div style={{ display: 'flex', gap: 30 }}>
+                        <img src="/pencil.svg" alt="Редактировать" style={{ width: 22, height: 22, cursor: 'pointer' }} onClick={() => setEditGroup(g)} />
+                        <img src="/delete.svg" alt="Удалить" style={{ width: 22, height: 22, cursor: 'pointer' }} onClick={() => setDeleteGroupOpen(g.id_group)} />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }) : null}
               {grouped.ungrouped.length > 0 && (
                 <tr>
                   <td style={tdStyle}>Без группы</td>
                   <td style={tdStyle}>{grouped.ungrouped.length}</td>
                   <td style={tdStyle}>—</td>
+                  <td style={tdStyle}></td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-        {!hasGroups && grouped.ungrouped.length === 0 && (
+        {allGroups.length === 0 && grouped.ungrouped.length === 0 && (
           <p style={{ textAlign: 'center', marginTop: 16, fontWeight: 400, fontSize: 18, lineHeight: '20px', color: '#1C1C19' }}>
             Нет созданных групп. Нажмите «Создать группу», чтобы добавить.
           </p>
         )}
       </div>
 
+      {/* Модальное окно: отвязать параметр */}
+      {deleteParamOpen && (
+        <div style={modalOverlay} onClick={() => setDeleteParamOpen(null)}>
+          <div style={modalBox} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontWeight: 600, fontSize: 26, lineHeight: '28px', color: '#1C1C19', margin: '0 0 12px 0' }}>Отвязать параметр</h3>
+            <p style={{ fontWeight: 400, fontSize: 18, lineHeight: '20px', color: '#707070', margin: '0 0 24px 0' }}>
+              Вы уверены, что хотите отвязать параметр от класса? Сам параметр останется в системе.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteParamOpen(null)} style={{ padding: '10px 20px', height: 50, background: '#FFFFFF', border: '1px solid rgba(28,28,25,0.5)', borderRadius: 10, cursor: 'pointer', fontFamily: '"Inter Tight", sans-serif', fontSize: 18 }}>Отмена</button>
+              <button onClick={handleDeleteParam} style={{ padding: '10px 20px', height: 50, background: '#E60023', border: 'none', borderRadius: 10, color: '#FFFFFF', cursor: 'pointer', fontFamily: '"Inter Tight", sans-serif', fontSize: 18 }}>Отвязать</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно: отвязать справочник */}
+      {deleteEnumOpen && (
+        <div style={modalOverlay} onClick={() => setDeleteEnumOpen(null)}>
+          <div style={modalBox} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontWeight: 600, fontSize: 26, lineHeight: '28px', color: '#1C1C19', margin: '0 0 12px 0' }}>
+              Отвязать справочник «{classEnums.find((e) => e.id_enum === deleteEnumOpen)?.name || ''}»
+            </h3>
+            <p style={{ fontWeight: 400, fontSize: 18, lineHeight: '20px', color: '#707070', margin: '0 0 24px 0' }}>
+              Справочник будет отвязан от класса, но останется в системе.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteEnumOpen(null)} style={{ padding: '10px 20px', height: 50, background: '#FFFFFF', border: '1px solid rgba(28,28,25,0.5)', borderRadius: 10, cursor: 'pointer', fontFamily: '"Inter Tight", sans-serif', fontSize: 18 }}>Отмена</button>
+              <button onClick={handleDeleteEnum} style={{ padding: '10px 20px', height: 50, background: '#E60023', border: 'none', borderRadius: 10, color: '#FFFFFF', cursor: 'pointer', fontFamily: '"Inter Tight", sans-serif', fontSize: 18 }}>Отвязать</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно: удалить группу */}
+      {deleteGroupOpen && (
+        <div style={modalOverlay} onClick={() => setDeleteGroupOpen(null)}>
+          <div style={modalBox} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontWeight: 600, fontSize: 26, lineHeight: '28px', color: '#1C1C19', margin: '0 0 12px 0' }}>
+              Удалить группу «{allGroups.find((g) => g.id_group === deleteGroupOpen)?.name || ''}»
+            </h3>
+            <p style={{ fontWeight: 400, fontSize: 18, lineHeight: '20px', color: '#707070', margin: '0 0 24px 0' }}>
+              Группа будет удалена. Параметры, привязанные к ней, останутся без группы.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteGroupOpen(null)} style={{ padding: '10px 20px', height: 50, background: '#FFFFFF', border: '1px solid rgba(28,28,25,0.5)', borderRadius: 10, cursor: 'pointer', fontFamily: '"Inter Tight", sans-serif', fontSize: 18 }}>Отмена</button>
+              <button onClick={handleDeleteGroup} style={{ padding: '10px 20px', height: 50, background: '#E60023', border: 'none', borderRadius: 10, color: '#FFFFFF', cursor: 'pointer', fontFamily: '"Inter Tight", sans-serif', fontSize: 18 }}>Удалить</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <LinkParameterModal open={linkParamOpen} onClose={() => setLinkParamOpen(false)} onSuccess={() => window.location.reload()} classId={id} className={node.name} />
       <LinkEnumModal open={linkEnumOpen} onClose={() => setLinkEnumOpen(false)} onSuccess={() => window.location.reload()} classId={id} className={node.name} />
-      <CreateGroupModal open={createGroupOpen} onClose={() => setCreateGroupOpen(false)} onSuccess={() => window.location.reload()} classId={id} className={node.name} />
+      <CreateGroupModal open={createGroupOpen || !!editGroup} onClose={() => { setCreateGroupOpen(false); setEditGroup(null); }} onSuccess={() => window.location.reload()} classId={id} className={node.name} editData={editGroup} />
       <DeleteClassModal open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} onSuccess={() => navigate('/admin/classes')} classItem={node} />
       <MoveClassModal open={moveModalOpen} onClose={() => setMoveModalOpen(false)} onSuccess={() => window.location.reload()} classItem={node} />
     </div>
